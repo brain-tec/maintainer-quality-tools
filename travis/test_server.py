@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import re
 import os
+import shutil
 import subprocess
 import sys
 from getaddons import get_addons, get_modules, is_installable_module
@@ -43,10 +44,12 @@ def has_test_errors(fname, dbname, odoo_version, check_loaded=True):
         for i in range(len(pattern_list)):
             if isinstance(pattern_list[i], basestring):
                 regex = re.compile(pattern_list[i])
-                pattern_list[i] = lambda x: regex.match(x['message'])
+                pattern_list[i] = lambda x, regex=regex:\
+                    regex.search(x['message'])
             elif hasattr(pattern_list[i], 'match'):
                 regex = pattern_list[i]
-                pattern_list[i] = lambda x: regex.match(x['message'])
+                pattern_list[i] = lambda x, regex=regex:\
+                    regex.search(x['message'])
 
     make_pattern_list_callable(errors_ignore)
     make_pattern_list_callable(errors_report)
@@ -171,15 +174,17 @@ def get_test_dependencies(addons_path, addons_list):
                 continue
             manif = eval(open(manif_path).read())
             return list(
-                set(manif.get('depends', []))
-                | set(get_test_dependencies(addons_path, addons_list[1:]))
-                - set(addons_list))
+                set(manif.get('depends', [])) |
+                set(get_test_dependencies(addons_path, addons_list[1:])) -
+                set(addons_list))
 
 
 def setup_server(db, odoo_unittest, tested_addons, server_path,
-                 addons_path, install_options, preinstall_modules=None):
+                 addons_path, install_options, preinstall_modules=None,
+                 unbuffer=True):
     """
     Setup the base module before running the tests
+    if the database template exists then will be used.
     :param db: Template database name
     :param odoo_unittest: Boolean for unit test (travis parameter)
     :param tested_addons: List of modules that need to be installed
@@ -191,22 +196,70 @@ def setup_server(db, odoo_unittest, tested_addons, server_path,
     if preinstall_modules is None:
         preinstall_modules = ['base']
     print("\nCreating instance:")
-    subprocess.check_call(["createdb", db])
-    cmd_odoo = ["%s/openerp-server" % server_path,
-                "-d", db,
-                "--log-level=warn",
-                "--stop-after-init",
-                "--addons-path", addons_path,
-                "--init", ','.join(preinstall_modules),
-                ] + install_options
-    print(" ".join(cmd_odoo))
-    subprocess.check_call(cmd_odoo)
+    try:
+        subprocess.check_call(["createdb", db])
+    except subprocess.CalledProcessError:
+        print("Using previous openerp_template database.")
+    else:
+        # unbuffer keeps output colors
+        cmd_odoo = ["unbuffer"] if unbuffer else []
+        cmd_odoo += ["%s/openerp-server" % server_path,
+                     "-d", db,
+                     "--log-level=info",
+                     "--stop-after-init",
+                     "--init", ','.join(preinstall_modules),
+                     ] + install_options
+        print(" ".join(cmd_odoo))
+        subprocess.check_call(cmd_odoo)
     return 0
+
+
+def run_from_env_var(env_name_startswith, environ):
+    '''Method to run a script defined from a environment variable
+    :param env_name_startswith: String with name of first letter of
+                                environment variable to find.
+    :param environ: Dictionary with full environ to search
+    '''
+    commands = [
+        command
+        for environ_variable, command in sorted(environ.iteritems())
+        if environ_variable.startswith(env_name_startswith)
+    ]
+    for command in commands:
+        print("command: ", command)
+        subprocess.call(command, shell=True)
+
+
+def create_server_conf(data, version):
+    '''Create (or edit) default configuration file of odoo
+    :params data: Dict with all info to save in file'''
+    fname_conf = os.path.expanduser('~/.openerp_serverrc')
+    if not os.path.exists(fname_conf):
+        fconf = open(fname_conf, "w")
+        fconf.write('[options]\n')
+    else:
+        # file is there, created by .travis.yml, assume the section is
+        # present and only append our stuff
+        fconf = open(fname_conf, "a")
+        fconf.write('\n')
+    for key, value in data.iteritems():
+        fconf.write(key + ' = ' + os.path.expanduser(value) + '\n')
+    fconf.close()
+
+
+def copy_attachments(dbtemplate, dbdest, data_dir):
+    attach_dir = os.path.join(os.path.expanduser(data_dir), 'filestore')
+    attach_tmpl_dir = os.path.join(attach_dir, dbtemplate)
+    attach_dest_dir = os.path.join(attach_dir, dbdest)
+    if os.path.isdir(attach_tmpl_dir) and not os.path.isdir(attach_dest_dir):
+        print("copy", attach_tmpl_dir, attach_dest_dir)
+        shutil.copytree(attach_tmpl_dir, attach_dest_dir)
 
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv
+    run_from_env_var('RUN_COMMAND_MQT', os.environ)
     travis_home = os.environ.get("HOME", "~/")
     travis_dependencies_dir = os.path.join(travis_home, 'dependencies')
     travis_build_dir = os.environ.get("TRAVIS_BUILD_DIR", "../..")
@@ -217,6 +270,9 @@ def main(argv=None):
     install_options = os.environ.get("INSTALL_OPTIONS", "").split()
     expected_errors = int(os.environ.get("SERVER_EXPECTED_ERRORS", "0"))
     odoo_version = os.environ.get("VERSION")
+    instance_alive = str2bool(os.environ.get('INSTANCE_ALIVE'))
+    unbuffer = str2bool(os.environ.get('UNBUFFER', True))
+    data_dir = os.environ.get("DATA_DIR", '~/data_dir')
     if not odoo_version:
         # For backward compatibility, take version from parameter
         # if it's not globally set
@@ -239,7 +295,10 @@ def main(argv=None):
     addons_path = get_addons_path(travis_dependencies_dir,
                                   travis_build_dir,
                                   server_path)
-
+    create_server_conf({
+        'addons_path': addons_path,
+        'data_dir': data_dir,
+    }, odoo_version)
     tested_addons_list = get_addons_to_check(travis_build_dir,
                                              odoo_include,
                                              odoo_exclude)
@@ -253,14 +312,15 @@ def main(argv=None):
         return 0
     else:
         print("Modules to test: %s" % tested_addons)
-
     # setup the base module without running the tests
     dbtemplate = "openerp_template"
     preinstall_modules = get_test_dependencies(addons_path,
                                                tested_addons_list)
+    preinstall_modules = list(set(preinstall_modules) - set(get_modules(
+        os.environ.get('TRAVIS_BUILD_DIR'))))
     print("Modules to preinstall: %s" % preinstall_modules)
     setup_server(dbtemplate, odoo_unittest, tested_addons, server_path,
-                 addons_path, install_options, preinstall_modules)
+                 addons_path, install_options, preinstall_modules, unbuffer)
 
     # Running tests
     database = "openerp_test"
@@ -270,7 +330,6 @@ def main(argv=None):
                      "-d", database,
                      "--stop-after-init",
                      "--log-level", test_loglevel,
-                     "--addons-path", addons_path,
                      ]
 
     if test_loghandler is not None:
@@ -283,7 +342,6 @@ def main(argv=None):
                             "-d", database,
                             "--stop-after-init",
                             "--log-level=warn",
-                            "--addons-path", addons_path,
                             ] + install_options + ["--init", None]
         commands = ((cmd_odoo_install, False),
                     (cmd_odoo_test, True),
@@ -296,17 +354,36 @@ def main(argv=None):
     counted_errors = 0
     for to_test in to_test_list:
         print("\nTesting %s:" % to_test)
-        subprocess.call(["createdb", "-T", dbtemplate, database])
+        db_odoo_created = False
+        try:
+            db_odoo_created = subprocess.call(
+                ["createdb", "-T", dbtemplate, database])
+            copy_attachments(dbtemplate, database, data_dir)
+        except subprocess.CalledProcessError:
+            db_odoo_created = True
         for command, check_loaded in commands:
-            command[-1] = to_test
-            # Run test command; unbuffer keeps output colors
-            command_call = ["unbuffer"] + command
+            if db_odoo_created and instance_alive:
+                # If exists database of odoo test
+                # then start server with regular command without tests params
+                rm_items = [
+                    'coverage', 'run', '--stop-after-init',
+                    '--test-enable', '--init', None,
+                    '--log-handler', 'openerp.tools.yaml_import:DEBUG',
+                ]
+                command_call = [item
+                                for item in commands[0][0]
+                                if item not in rm_items] + \
+                    ['--db-filter=^%s$' % database]
+            else:
+                command[-1] = to_test
+                # Run test command; unbuffer keeps output colors
+                command_call = (["unbuffer"] if unbuffer else []) + command
             print(' '.join(command_call))
             pipe = subprocess.Popen(command_call,
                                     stderr=subprocess.STDOUT,
                                     stdout=subprocess.PIPE)
             with open('stdout.log', 'w') as stdout:
-                for line in pipe.stdout:
+                for line in iter(pipe.stdout.readline, ''):
                     stdout.write(line)
                     print(line.strip())
             returncode = pipe.wait()
@@ -325,7 +402,9 @@ def main(argv=None):
                 counted_errors += errors
                 all_errors.append(to_test)
                 print(fail_msg, "Found %d lines with errors" % errors)
-        subprocess.call(["dropdb", database])
+        if not instance_alive:
+            # Don't drop the database if will be used later.
+            subprocess.call(["dropdb", database])
 
     print('Module test summary')
     for to_test in to_test_list:
