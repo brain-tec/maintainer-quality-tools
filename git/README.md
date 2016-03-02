@@ -45,7 +45,7 @@ outdated. Use pip ones:
 
 ```bash
 # pip install --upgrade flake8 pep8
-$ git clone https://github.com/OCA/pylint-odoo
+$ git clone https://github.com/brain-tec/pylint-odoo -b eBev
 $ cd pylint-odoo
 # ./install.sh
 ```
