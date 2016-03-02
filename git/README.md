@@ -11,7 +11,7 @@ For using it, you can choose from two options:
    checks for that git repository.
 
    ```bash
-   git clone git@github.com:OCA/maintainer-quality-tools.git ${HOME}/lint-hook
+   git clone git@github.com:brain-tec/maintainer-quality-tools.git -b eBev ${HOME}/lint-hook
    ln -sf ${HOME}/lint-hook/git/* {YOUR_PROJECT}/.git/hooks/.
    ```
 
@@ -33,7 +33,7 @@ Then, making `git init` inside a git repository, these files will be copied,
 and you will have these checks available for it.
 
    ```bash
-   git clone git@github.com:OCA/maintainer-quality-tools.git ${HOME}/lint-hook
+   git clone git@github.com:brain-tec/maintainer-quality-tools.git -b eBev ${HOME}/lint-hook
    sudo ln -sf ${HOME}/lint-hook/git/* /usr/share/git-core/templates/hooks/.
    cd {YOUR_PROJECT}
    git init .
