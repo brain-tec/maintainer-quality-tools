@@ -9,8 +9,10 @@ omit =
     */scenarios/*
     */test/*
     */tests/*
+    *_example/*
     *__init__.py
     *__openerp__.py
+    *__manifest__.py
 
 # Regexes for lines to exclude from consideration
 exclude_lines =
@@ -18,3 +20,7 @@ exclude_lines =
     pragma: no cover
     # Don't complain about null context checking
     if context is None:
+    # Don't check obviously not implemented
+    raise NotImplementedError
+    # We don't really care what happens if fail
+    except ImportError:
