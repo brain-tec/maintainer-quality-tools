@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import ast
 import re
 import os
 import shutil
@@ -89,7 +90,7 @@ def has_test_errors(fname, dbname, odoo_version, check_loaded=True):
                 break
 
     if check_loaded:
-        if not [r for r in log_records if 'Modules loaded.' == r['message']]:
+        if not [r for r in log_records if 'Modules loaded.' in r['message']]:
             errors.append({'message': "Modules loaded message not found."})
 
     if errors:
@@ -176,7 +177,7 @@ def get_test_dependencies(addons_path, addons_list):
                 os.path.join(path, addons_list[0]))
             if not manif_path:
                 continue
-            manif = eval(open(manif_path).read())
+            manif = ast.literal_eval(open(manif_path).read())
             return list(
                 set(manif.get('depends', [])) |
                 set(get_test_dependencies(addons_path, addons_list[1:])) -
@@ -437,7 +438,7 @@ def main(argv=None):
                 counted_errors += errors
                 all_errors.append(to_test)
                 print(fail_msg, "Found %d lines with errors" % errors)
-        if not instance_alive:
+        if not instance_alive and odoo_unittest:
             # Don't drop the database if will be used later.
             subprocess.call(["dropdb", database])
 
