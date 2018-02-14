@@ -2,12 +2,13 @@
 
 if [ "$NOLINT" == "1" ] || [ "$NOLINT" == true ]; then exit 0; fi
 
-if [ "$TRAVIS" != true ] && [ -z ${NOLINT+x} ]; then
-    read -p "Do you want to run lints? (y/N): " yn </dev/tty
-    case $yn in
-        [Yy]* ) true;;
-        * ) exit 0;;
-    esac
+# Get Odoo version to check (normally comes from .travis.cfg)
+export MY_GIT_DIR=`pwd -P` $(dirname $0)
+if [ -f ${MY_GIT_DIR}/.pre-commit-env ]; then
+    echo "reading ${MY_GIT_DIR}/.pre-commit-env"
+    source ${MY_GIT_DIR}/.pre-commit-env
+else
+    echo "File ${MY_GIT_DIR}/.pre-commit-env is missing"
 fi
 
 set -v
