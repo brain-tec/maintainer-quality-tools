@@ -118,7 +118,7 @@ Running tests with Docker
 This will run lint and flake checks:
 
     docker build -t travis git@github.com:brain-tec/maintainer-quality-tools.git
-    docker run -v $ full/path/to/repository:/root/src travis
+    docker run -v full/path/to/repository:/root/src travis
     
 You may use `${pwd}` to expand the current working directory
 
