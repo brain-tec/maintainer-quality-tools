@@ -10,11 +10,11 @@ py_version=2
 if [ -f ${TRAVIS_FILE} ]; then
     echo "reading ${TRAVIS_FILE}"
     export VERSION=`grep VERSION .travis.yml | sed -n 's;.*VERSION="\([^"]*\).*;\1;p'`
-    py_version=$(yaml $TRAVIS_FILE "['python'][0][0]")
-    echo "Testing with version: $VERSION"
+    export PY_VERSION=$(yaml $TRAVIS_FILE "['python'][0][0]")
+
 
 else
     echo "Cannot determine the odoo version as ${TRAVIS_FILE} is missing"
 fi
-
-. "/venv_py$py_version/bin/activate" && travis_run_tests
+echo "Testing with Odoo $VERSION using Python $PY_VERSION"
+. "/venv_py$PY_VERSION/bin/activate" && travis_run_tests
