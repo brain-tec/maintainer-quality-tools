@@ -112,3 +112,13 @@ If you want to make a build without tests, you can use the following directive:
 
 You will simply get the databases with packages installed, 
 but whithout running any tests.
+
+
+Running tests with Docker
+--------------------------
+This will run lint and flake checks:
+
+    docker build -t travis_oca git@github.com:brain-tec/maintainer-quality-tools.git#oca_docker
+    docker run -v full/path/to/repository:/root/src travis_oca
+    
+You may use `$(pwd)` to expand the current working directory
