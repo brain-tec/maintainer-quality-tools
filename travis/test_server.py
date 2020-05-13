@@ -134,6 +134,8 @@ def get_addons_path(travis_dependencies_dir, travis_build_dir, server_path, serv
     """
     addons_path_list = get_addons(travis_build_dir)
     addons_path_list.extend(get_addons(travis_dependencies_dir))
+    if 'ext' in os.listdir(travis_build_dir):
+        addons_path_list.extend(get_addons(os.path.join(server_path, "ext")))
     if server_path_enterprise:
         addons_path_list.append(server_path_enterprise)
     addons_path_list.append(os.path.join(server_path, "addons"))
