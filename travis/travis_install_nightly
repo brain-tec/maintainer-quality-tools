@@ -82,8 +82,8 @@ else
     git --work-tree=${ODOO_PATH} --git-dir=${ODOO_PATH}/.git remote rename origin $REMOTE
     if [! -z "${ODOO_ENTERPRISE}"]; then
         IFS="/" read -a REPO_ENTERPRISE <<< "${ODOO_ENTERPRISE}"
-        export REMOTE_ENTERPRISE="${REPO[0],,}"
-        export REPO_NAME_ENTERPRISE="${REPO[1]}"
+        export REMOTE_ENTERPRISE="${REPO_ENTERPRISE[0],,}"
+        export REPO_NAME_ENTERPRISE="${REPO_ENTERPRISE[1]}"
         export ODOO_PATH_ENTERPRISE=${HOME}/$REPO_NAME_ENTERPRISE-$ODOO_BRANCH
         echo "Downloading Enterprise"
         git clone --depth=50 git@github.com:$REMOTE_ENTERPRISE/enterprise.git -b $BRANCH ${ODOO_PATH_ENTERPRISE}
