@@ -10,7 +10,10 @@ from six import string_types
 from getaddons import (
     get_addons, get_modules, get_modules_info, get_dependencies)
 from travis_helpers import success_msg, fail_msg
-from configparser import ConfigParser
+try:
+    import ConfigParser
+except ImportError:
+    import configparser as ConfigParser
 
 
 def has_test_errors(fname, dbname, odoo_version, check_loaded=True):
@@ -276,11 +279,12 @@ def create_server_conf(data, version):
         # If not exists the file then is created
         fconf = open(fname_conf, "w")
         fconf.close()
-    config = ConfigParser()
+    config = ConfigParser.ConfigParser()
     config.read(fname_conf)
     if not config.has_section('options'):
-        config['options'] = {}
-    config['options'].update(data)
+        config.add_section('options')
+    for key, value in data.items():
+        config.set('options', key, value)
     with open(fname_conf, 'w') as configfile:
         config.write(configfile)
 
@@ -349,7 +353,8 @@ def main(argv=None):
                                   server_path_enterprise
                                   )
     create_server_conf({
-        'addons_path': addons_path,
+        # when installing with pip we don't need an addons_path
+        'addons_path': addons_path if os.environ.get("MQT_DEP", "OCA") == "OCA" else "",
         'data_dir': data_dir,
     }, odoo_version)
     tested_addons_list = get_addons_to_check(travis_build_dir,
@@ -478,14 +483,17 @@ def main(argv=None):
         return 1
     # no test error, let's generate .pot and msgmerge all .po files
     must_run_makepot = (
-        os.environ.get('MAKEPOT') == '1' and
-        os.environ.get('TRAVIS_REPO_SLUG', '').startswith('OCA/') and
-        os.environ.get('TRAVIS_BRANCH')
-        in ('8.0', '9.0', '10.0', '11.0', '12.0') and
-        os.environ.get('TRAVIS_PULL_REQUEST') == 'false' and
-        os.environ.get('GITHUB_USER') and
-        os.environ.get('GITHUB_EMAIL') and
-        os.environ.get('GITHUB_TOKEN')
+        os.environ.get('MAKEPOT') == '1'
+        and os.environ.get('TRAVIS_REPO_SLUG', '').startswith('OCA/')
+        and (
+            os.environ.get('TRAVIS_BRANCH')
+            in ('8.0', '9.0', '10.0', '11.0', '12.0', '13.0')
+            or "ocabot-merge" in os.environ.get('TRAVIS_BRANCH', '')
+        )
+        and os.environ.get('TRAVIS_PULL_REQUEST') == 'false'
+        and os.environ.get('GITHUB_USER')
+        and os.environ.get('GITHUB_EMAIL')
+        and os.environ.get('GITHUB_TOKEN')
     )
     if must_run_makepot:
         # run makepot using the database we just tested
