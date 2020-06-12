@@ -80,7 +80,7 @@ else
     echo "Downloading Odoo"
     git clone --depth=50 https://github.com/$REMOTE/$REPO_NAME.git -b $BRANCH ${ODOO_PATH}
     git --work-tree=${ODOO_PATH} --git-dir=${ODOO_PATH}/.git remote rename origin $REMOTE
-    if [! -z "${ODOO_ENTERPRISE}"]; then
+    if [ ! -z "${ODOO_ENTERPRISE}" ]; then
         IFS="/" read -a REPO_ENTERPRISE <<< "${ODOO_ENTERPRISE}"
         export REMOTE_ENTERPRISE="${REPO_ENTERPRISE[0],,}"
         export REPO_NAME_ENTERPRISE="${REPO_ENTERPRISE[1]}"
