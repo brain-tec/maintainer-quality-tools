@@ -152,7 +152,7 @@ def get_server_script(server_path):
     return 'openerp-server'
 
 
-def get_addons_to_check(travis_build_dir, odoo_include, odoo_exclude):
+def get_addons_to_check(travis_build_dir, odoo_include, odoo_exclude, include_submodules):
     """
     Get the list of modules that need to be installed
     :param travis_build_dir: Travis build directory
@@ -163,7 +163,10 @@ def get_addons_to_check(travis_build_dir, odoo_include, odoo_exclude):
     if odoo_include:
         addons_list = parse_list(odoo_include)
     else:
-        addons_list = get_modules(travis_build_dir)
+        if include_submodules:
+            addons_list = get_modules(travis_build_dir, depth=3)
+        else:
+            addons_list = get_modules(travis_build_dir)
 
     if odoo_exclude:
         exclude_list = parse_list(odoo_exclude)
@@ -363,7 +366,8 @@ def main(argv=None):
     }, odoo_version)
     tested_addons_list = get_addons_to_check(travis_build_dir,
                                              odoo_include,
-                                             odoo_exclude)
+                                             odoo_exclude,
+                                             include_submodules)
     tested_addons = ','.join(tested_addons_list)
 
     print("Working in %s" % travis_build_dir)
