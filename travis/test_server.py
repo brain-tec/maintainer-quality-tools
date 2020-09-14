@@ -173,7 +173,7 @@ def get_addons_to_check(travis_build_dir, odoo_include, odoo_exclude):
     return addons_list
 
 
-def get_test_dependencies(addons_path, addons_list):
+def get_test_dependencies(addons_path, addons_list, include_submodules):
     """
     Get the list of core and external modules dependencies
     for the modules to test.
@@ -185,7 +185,10 @@ def get_test_dependencies(addons_path, addons_list):
     else:
         modules = {}
         for path in addons_path.split(','):
-            modules.update(get_modules_info(path))
+            if include_submodules:
+                modules.update(get_modules_info(path, depth=3))
+            else:
+                modules.update(get_modules_info(path))
         dependencies = set()
         for module in addons_list:
             dependencies |= get_dependencies(modules, module)
@@ -340,6 +343,7 @@ def main(argv=None):
             test_loghandler = 'openerp.tools.yaml_import:DEBUG'
     odoo_full = os.environ.get("ODOO_REPO", "odoo/odoo")
     enterprise_full = os.environ.get("ODOO_ENTERPRISE", False)
+    include_submodules = os.environ.get("TEST_SUBMODULES", False)
     server_path = get_server_path(odoo_full, odoo_branch or odoo_version,
                                   travis_home)
     server_path_enterprise = False
@@ -372,7 +376,8 @@ def main(argv=None):
         print("Modules to test: %s" % tested_addons_list)
     # setup the preinstall modules without running the tests
     preinstall_modules = get_test_dependencies(addons_path,
-                                               tested_addons_list)
+                                               tested_addons_list,
+                                               include_submodules)
 
     preinstall_modules = list(set(preinstall_modules) - set(get_modules(
         os.environ.get('TRAVIS_BUILD_DIR')))) or ['base']
