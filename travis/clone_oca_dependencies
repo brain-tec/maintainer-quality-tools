@@ -79,15 +79,39 @@ def git_checkout(deps_checkout_dir, reponame, url, branch, commit=False):
         subprocess.check_call(command)
     return checkout_dir
 
+def recursively_add_requirements(build_dir):
+    reqfilenames = []
+    for folder in os.listdir(build_dir):
+        if os.path.isfile(osp.join(build_dir, folder)) and folder == 'requirements.txt':
+            reqfilenames.append(osp.join(osp.join(build_dir, folder)))
 
-def run(deps_checkout_dir, build_dir):
+        elif folder != 'setup' and os.path.isdir(osp.join(build_dir, folder)):
+
+            inside_folder = os.listdir(osp.join(build_dir, folder))
+            if {'__manifest__.py'} <= set(inside_folder):
+                continue
+            for item in inside_folder:
+                item_path = osp.join(osp.join(build_dir, folder), item)
+                if os.path.isdir(item_path) and item not in ['setup', 'controller', 'wizard', 'views', 'data',
+                                                             'static', 'models', 'tests', 'report', 'reports',
+                                                             'security', 'wizards', 'migrations', 'i18n',
+                                                             'readme']:
+                    reqfilenames.extend(recursively_add_requirements(item_path))
+    return reqfilenames
+
+def run(deps_checkout_dir, build_dir, include_submodules):
     dependencies = []
     processed = set()
     depfilename = osp.join(build_dir, 'oca_dependencies.txt')
     dependencies.append(depfilename)
-    reqfilenames = []
-    if osp.isfile(osp.join(build_dir, 'requirements.txt')):
-        reqfilenames.append(osp.join(build_dir, 'requirements.txt'))
+
+    if include_submodules:
+        reqfilenames = recursively_add_requirements(build_dir)
+    else:
+        reqfilenames = []
+        if osp.isfile(osp.join(build_dir, 'requirements.txt')):
+            reqfilenames.append(osp.join(build_dir, 'requirements.txt'))
+
     for repo in os.listdir(deps_checkout_dir):
         _logger.info('examining %s', repo)
         processed.add(repo)
@@ -122,6 +146,7 @@ def run(deps_checkout_dir, build_dir):
 
 
 if __name__ == '__main__':
+    include_submodules = os.environ.get("TEST_SUBMODULES", False)
     if len(sys.argv) == 1:
         deps_checkout_dir = osp.join(os.environ['HOME'], 'dependencies')
         if not osp.exists(deps_checkout_dir):
@@ -133,4 +158,4 @@ if __name__ == '__main__':
     else:
         deps_checkout_dir = sys.argv[1]
         build_dir = sys.argv[2]
-    run(deps_checkout_dir, build_dir)
+    run(deps_checkout_dir, build_dir, include_submodules)
