@@ -102,7 +102,9 @@ def recursively_add_requirements_and_oca_dependencies(build_dir):
                         inner_item not in ['setup', 'controller', 'wizard', 'views', 'data', 'static', 'models',
                                            'tests', 'report', 'reports', 'security', 'wizards', 'migrations',
                                            'i18n', 'readme']):
-                    reqfilenames.extend(recursively_add_requirements_and_oca_dependencies(item_path))
+                    reqfilenames_child, dependencies_child = (recursively_add_requirements_and_oca_dependencies(item_path))
+                    reqfilenames.extend(reqfilenames_child)
+                    dependencies.extend(dependencies_child)
     return reqfilenames, dependencies
 
 def run(deps_checkout_dir, build_dir, include_submodules):
