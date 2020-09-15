@@ -79,38 +79,45 @@ def git_checkout(deps_checkout_dir, reponame, url, branch, commit=False):
         subprocess.check_call(command)
     return checkout_dir
 
-def recursively_add_requirements(build_dir):
+def recursively_add_requirements_and_oca_dependencies(build_dir):
     reqfilenames = []
-    for folder in os.listdir(build_dir):
-        if os.path.isfile(osp.join(build_dir, folder)) and folder == 'requirements.txt':
-            reqfilenames.append(osp.join(osp.join(build_dir, folder)))
+    dependencies = []
 
-        elif folder != 'setup' and os.path.isdir(osp.join(build_dir, folder)):
+    for main_item in os.listdir(build_dir):
+        file_or_folder_path = osp.join(build_dir, main_item)
+        if os.path.isfile(file_or_folder_path) and main_item == 'requirements.txt':
+            reqfilenames.append(file_or_folder_path)
 
-            inside_folder = os.listdir(osp.join(build_dir, folder))
-            if {'__manifest__.py'} <= set(inside_folder):
+        if os.path.isfile(file_or_folder_path) and main_item == 'oca_dependencies.txt':
+            dependencies.append(file_or_folder_path)
+
+        elif main_item != 'setup' and os.path.isdir(file_or_folder_path):
+
+            folder_content = os.listdir(file_or_folder_path)
+            if {'__manifest__.py'} <= set(folder_content):
                 continue
-            for item in inside_folder:
-                item_path = osp.join(osp.join(build_dir, folder), item)
-                if os.path.isdir(item_path) and item not in ['setup', 'controller', 'wizard', 'views', 'data',
-                                                             'static', 'models', 'tests', 'report', 'reports',
-                                                             'security', 'wizards', 'migrations', 'i18n',
-                                                             'readme']:
-                    reqfilenames.extend(recursively_add_requirements(item_path))
-    return reqfilenames
+            for inner_item in folder_content:
+                item_path = osp.join(file_or_folder_path, inner_item)
+                if (os.path.isdir(item_path) and
+                        inner_item not in ['setup', 'controller', 'wizard', 'views', 'data', 'static', 'models',
+                                           'tests', 'report', 'reports', 'security', 'wizards', 'migrations',
+                                           'i18n', 'readme']):
+                    reqfilenames.extend(recursively_add_requirements_and_oca_dependencies(item_path))
+    return reqfilenames, dependencies
 
 def run(deps_checkout_dir, build_dir, include_submodules):
-    dependencies = []
     processed = set()
-    depfilename = osp.join(build_dir, 'oca_dependencies.txt')
-    dependencies.append(depfilename)
 
     if include_submodules:
-        reqfilenames = recursively_add_requirements(build_dir)
+        reqfilenames, dependencies = recursively_add_requirements_and_oca_dependencies(build_dir)
     else:
         reqfilenames = []
         if osp.isfile(osp.join(build_dir, 'requirements.txt')):
             reqfilenames.append(osp.join(build_dir, 'requirements.txt'))
+
+        dependencies = []
+        depfilename = osp.join(build_dir, 'oca_dependencies.txt')
+        dependencies.append(depfilename)
 
     for repo in os.listdir(deps_checkout_dir):
         _logger.info('examining %s', repo)
