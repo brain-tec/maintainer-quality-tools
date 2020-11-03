@@ -15,6 +15,7 @@ if [ -f ${TRAVIS_FILE} ]; then
 
 else
     echo "Cannot determine the odoo version as ${TRAVIS_FILE} is missing"
+    echo "Please specify env vars for python version PY_VERSION and odoo version VERSION"
 fi
 echo "Testing with Odoo $VERSION using Python $PY_VERSION"
 . "/venv_py$PY_VERSION/bin/activate" && travis_run_tests
